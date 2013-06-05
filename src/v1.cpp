@@ -23,6 +23,34 @@ glm::vec3 initTar(0.0f, 0.0f, 0.0f);
 glm::vec3 initUp(0.0f, 0.0f, 1.0);
 
 std::map<std::string, unsigned int> skel_ref;
+
+void MakeSkel(std::map<std::string, unsigned int>& mBoneIdx)
+{
+  mBoneIdx["Hips"]      = 0;
+  mBoneIdx["LHipJoint"] = 1;
+  mBoneIdx["LeftUpLeg"] = 2;
+  mBoneIdx["LeftLeg"]   = 3;
+  mBoneIdx["LeftFoot"]  = 4;
+  mBoneIdx["RHipJoint"] = 5;
+  mBoneIdx["RightUpLeg"]= 6;
+  mBoneIdx["RightLeg"]  = 7;
+  mBoneIdx["RightFoot"] = 8;
+  mBoneIdx["LowerBack"] = 9;
+  mBoneIdx["Spine"]     =10;
+  mBoneIdx["Spine1"]    =11;
+  mBoneIdx["Neck"]      =12;
+  mBoneIdx["Neck1"]     =13;
+  mBoneIdx["Head"]      =14;
+  mBoneIdx["LeftShoulder"]=15;
+  mBoneIdx["LeftArm"]   =16;
+  mBoneIdx["LeftForeArm"]=17;
+  mBoneIdx["LeftHand"]  =18;
+  mBoneIdx["RightShoulder"]=19;
+  mBoneIdx["RightArm"]  =20;
+  mBoneIdx["RightForeArm"]=21;
+  mBoneIdx["RightHand"] =22;
+}
+
 void LoadSkel(std::map<std::string, unsigned int>& rSkel_ref)
 {
   std::ifstream fin("test.yaml");
