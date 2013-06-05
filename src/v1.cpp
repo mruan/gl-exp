@@ -15,8 +15,8 @@
 #define SHADER_SOURCE_FILE 
 #define TEXTURE_SOURCE_FILE
 
-#WIDTH  800
-#HEIGHT 600
+#define WIDTH  800
+#define HEIGHT 600
 
 glm::vec3 initPos(10.0f, 0.0f, 0.0f);
 glm::vec3 initTar(0.0f, 0.0f, 0.0f);

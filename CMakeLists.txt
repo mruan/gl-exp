@@ -8,8 +8,6 @@ find_package(OpenGL REQUIRED)
 #find_package(OpenCV REQUIRED)
 #find_package(PCL 1.3 REQUIRED COMPONENTS common io)
 
-add_subdirectory(external)
-
 include_directories(
 # ${PCL_INCLUDE_DIRS}
   /usr/local/include/assimp/

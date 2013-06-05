@@ -24,6 +24,6 @@ cmake_install.cmake
 # Directories
 build/
 bin/
-external/
-common/
+external
+common
 CMakeFiles/
