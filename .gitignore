@@ -11,3 +11,19 @@
 *.lai
 *.la
 *.a
+
+# CMake generated files
+CMakeCache.txt
+Makefile
+cmake_install.cmake
+
+# Emacs temps
+*#
+*~
+
+# Directories
+build/
+bin/
+external/
+common/
+CMakeFiles/
