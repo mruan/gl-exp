@@ -17,6 +17,8 @@ class Mesh
 {
 public:
   static std::map<std::string, unsigned int> BuildRefSkeleton();
+  static std::vector<glm::mat4> GetOffsetFromMesh(const aiMesh* pMesh, 
+						  std::map<std::string, uint> Bone2TfIdx);
 
 private:
 

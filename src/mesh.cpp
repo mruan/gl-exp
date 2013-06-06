@@ -30,6 +30,33 @@ std::map<std::string, unsigned int> Mesh::BuildRefSkeleton()
   return mBoneIdx;
 }
 
+std::vector<glm::mat4> Mesh::
+GetOffsetFromMesh(const aiMesh* pMesh, 
+		  std::map<std::string, uint> Bone2TfIdx)
+{
+  std::vector<glm::mat4> BoneOffset(Bone2TfIdx.size());
+  // Fill OffsetMatrix
+  for(uint i=0; i< pMesh->mNumBones; i++)
+    {
+      uint boneIdx =0;
+      std::string BoneNm(pMesh->mBones[i]->mName.data);
+      
+      if(Bone2TfIdx.find(BoneNm) != Bone2TfIdx.end())
+	{
+	  boneIdx = Bone2TfIdx[BoneNm];
+	  CopyMat(pMesh->mBones[i]->mOffsetMatrix, BoneOffset[boneIdx]);
+	  
+	  //printf("Idx: %2u, Name: %s\n", boneIdx, BoneNm.c_str());
+	  //pprintMat16(mBoneOffset[boneIdx]);
+	  }
+      else
+	{
+	  //printf("Not needed: %s\n", BoneNm.c_str());
+	}
+    }
+  return BoneOffset;
+}
+
 Mesh::Mesh(std::map<std::string, unsigned int>& skel_def)
   :mBone2TfIdx(skel_def), mBoneOffset(skel_def.size())
 {
