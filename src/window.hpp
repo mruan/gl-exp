@@ -2,23 +2,24 @@
 #ifndef GL_MANAGER_HPP
 #define GL_MANAGER_HPP
 
-#include <GL/glew.h>
-#include <GL/glfw.h>
-#include "camera.hpp"
-
 class Window
 {
 public:
-  Window();
+  Window(const char* name, 
+	 const unsigned int width, 
+	 const unsigned int height);
 
   ~Window();
 
-  int Spin();
+  void ClearCanvas();
+
+  void SwapBuffer();
+
+  bool IsRunning();
   
-private:
-  int InitWindow(const char* name, 
-		 const unsigned int width, 
-		 const unsigned int height);
+  bool ShouldShowNextFrame(double interval);
+  //private:
+
 };
 
 #endif

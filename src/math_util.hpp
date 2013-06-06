@@ -6,6 +6,7 @@
 #define DEG_PER_PI (180.0f/3.1415927f)
 
 // copy from Row-major to Column major matrix
+// i.e. from aiMatrix4x4 to glm::mat4
 template <typename RM, typename CM>
 void CopyMat(const RM& from, CM& to) 
 {

@@ -1,11 +1,11 @@
 #include "animation.hpp"
-#include "math_utils.hpp"
+#include "math_util.hpp"
 
 Animation::
-Animation(const std::map<std::string, uint32>& skel_def,
+Animation(std::map<std::string, uint32>& skel_def,
 	  const std::vector<glm::mat4>& boneOffsets)
   :mBoneIdx(skel_def),mBoneOffsets(boneOffsets),
-   mBoneFinalTf(boneOffsets.size(), glm::mat(1.0f))
+   mBoneFinalTf(boneOffsets.size(), glm::mat4(1.0f))
 {}
 
 void Animation::
@@ -29,7 +29,7 @@ InitAnimation(aiNode* root, aiAnimation* pAnimation)
   for(uint32 i=0; i< pAnim->mNumChannels; ++i)
     {
       const aiNodeAnim* pNodeAnim = pAnim->mChannels[i];
-      string name(pNodeAnim->mNodeName.data);
+      std::string name(pNodeAnim->mNodeName.data);
 
       // TODO: assume always finds a match
       uint32 boneIdx = mBoneIdx[name];
@@ -46,10 +46,6 @@ const std::vector<glm::mat4>& Animation::GetTfs()
 
 void Animation::UpdateFrameTfs(int frameNum)
 {
-  aiMatrix4x4 I(1.0f, 0.0f, 0.0f, 0.0f,
-		0.0f, 1.0f, 0.0f, 0.0f,
-		0.0f, 0.0f, 1.0f, 0.0f,
-		0.0f, 0.0f, 0.0f, 1.0f);
     /*
     printf("There are %d Rot %d Loc %d Scal Keys\n", 
 	   pAnim->mChannels[0]->mNumRotationKeys,
@@ -58,15 +54,15 @@ void Animation::UpdateFrameTfs(int frameNum)
     */
   
   // Recursively update the transform;
-  ReadNodeHeirarchy(frameNum, pRootNode, I);
+  ReadNodeHeirarchy(frameNum, pRootNode, glm::mat4(1.0f));
 }
 
 void Animation::
-ReadNodeHeirarchy(uint32 frameIdx, 
+ReadNodeHeirarchy(int frameIdx, 
 		  const aiNode* pNode, 
 		  const glm::mat4& parTf)
 {
-  string nodeName(pNode->mName.data);
+  std::string nodeName(pNode->mName.data);
   if (mBoneIdx.find(nodeName) == mBoneIdx.end())
     return;
   

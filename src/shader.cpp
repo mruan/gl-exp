@@ -6,11 +6,12 @@
 
 #include "shader.hpp"
 
+#include <GL/glfw.h>
+
 using namespace std;
 
-Shader::Shader(const char* pEffectFile)
+Shader::Shader()
 {
-  m_pEffectFile = pEffectFile;
   m_shaderProg = 0;
   m_effect = glfxGenEffect();
 }
@@ -26,11 +27,11 @@ Shader::~Shader()
   glfxDeleteEffect(m_effect); 
 }
 
-bool Shader::CompileProgram(const char* pProgram)
+bool Shader::CompileProgram(const char* pEffectFile, const char* pProgram)
 {
-    if (!glfxParseEffectFromFile(m_effect, m_pEffectFile)) {
+    if (!glfxParseEffectFromFile(m_effect, pEffectFile)) {
         string log = glfxGetEffectLog(m_effect);
-        printf("Error creating effect from file '%s':\n", m_pEffectFile);
+        printf("Error creating effect from file '%s':\n", pEffectFile);
         printf("%s\n", log.c_str());
         return false;
     }
@@ -39,7 +40,7 @@ bool Shader::CompileProgram(const char* pProgram)
     
     if (m_shaderProg < 0) {
         string log = glfxGetEffectLog(m_effect);
-        printf("Error compiling program '%s' in effect file '%s':\n", pProgram, m_pEffectFile);
+        printf("Error compiling program '%s' in effect file '%s':\n", pProgram, pEffectFile);
         printf("%s\n", log.c_str());
         return false;
     }
@@ -74,14 +75,17 @@ GLint Shader::GetProgramParam(GLint param)
 /*************************************************************************************************
 Technique class
 *************************************************************************************************/
-bool Shader::Init()
+bool Shader::InitShader(const char* pEffectFile)
 {
-  if(!CompileProgram("Shading"))
+  // Compile the effect glsl file
+  if(!CompileProgram(pEffectFile, "Shading"))
     return false;
 
+  // Set up memory locations for view and texture
   m_WVPLocation = GetUniformLocation("gWVP");
   m_ColorTextureLocation = GetUniformLocation("gColorMap");
 
+  // Set up memory blocks for bone transforms
   for(unsigned int i=0; i< MAX_BONES; i++)
     {
       char name[32];
@@ -93,6 +97,35 @@ bool Shader::Init()
   return true;
 }
 
+bool Shader::InitTextureTGA(const char* pTextureTGA)
+{
+  // Create one OpenGL texture
+  GLuint textureID;
+  glGenTextures(1, &textureID);
+  
+  // "Bind" the newly created texture : all future texture functions will modify this texture
+  glBindTexture(GL_TEXTURE_2D, textureID);
+  
+  // Read the file, call glTexImage2D with the right parameters
+  int flag = glfwLoadTexture2D(pTextureTGA, 0);
+  if (flag != GL_TRUE)
+    {
+      printf("Error parsing texture input file %s\n", pTextureTGA);
+      return false;
+    }
+
+  // Nice trilinear filtering.
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+  glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR); 
+  glGenerateMipmap(GL_TEXTURE_2D);
+  
+  // TODO: for now set the texture here
+  SetColorTextureUnit(textureID);
+  // Return the ID of the texture we just created
+  return true;//textureID;
+}
 
 void Shader::SetWVP(const glm::mat4& wvp)
 {
@@ -108,10 +141,10 @@ void Shader::SetColorTextureUnit(GLuint Texture)
   glUniform1i(m_ColorTextureLocation, 0);
 }
 
-void Shader::SetBoneTfs(const std::vector<glm::mat4>& Tf)
+void Shader::SetBoneTfs(const std::vector<glm::mat4>& Tfs)
 {
-  assert(Tf.size() < MAX_BONES);
-  for(unsigned int i=0; i < Tf.size(); i++)
+  assert(Tfs.size() < MAX_BONES);
+  for(unsigned int i=0; i < Tfs.size(); i++)
     glUniformMatrix4fv(m_boneLocation[i], 1, GL_FALSE, 
-		       (const GLfloat*) &Tf[i][0][0]);
+		       (const GLfloat*) &Tfs[i][0][0]);
 }

@@ -15,11 +15,13 @@
 class Shader
 {
 public:
-  Shader(const char* pEffectFile);
+  Shader();
 
   ~Shader();
 
-  bool Init();
+  bool InitShader(const char* pEffectFile);
+
+  bool InitTextureTGA(const char* pTextureTGA);
 
   void Enable();
 
@@ -27,9 +29,9 @@ public:
 
   void SetColorTextureUnit(GLuint Texture);
 
-  void SetBoneTf(const std::vector<glm::mat4>& Tf);
+  void SetBoneTfs(const std::vector<glm::mat4>& Tfs);
 protected:
-  bool CompileProgram(const char* pProgram);
+  bool CompileProgram(const char* pEffectFile, const char* pProgram);
 
   GLint GetUniformLocation(const char* pUniformName);
 

@@ -1,12 +1,13 @@
 #include "mesh.hpp"
+#include "math_util.hpp"
 
 Mesh::Mesh(std::map<std::string, unsigned int>& skel_def)
-  :mBone2TfIdx(skel_def)
+  :mBone2TfIdx(skel_def), mBoneOffset(skel_def.size())
 {
   _VAO = 0;
   memset(_Buffers, 0, sizeof(_Buffers));
-  _numBone = 0;
-  _pSceneMesh = NULL;
+  //  _numBone = 0;
+  //  _pSceneMesh = NULL;
 }
 
 Mesh::~Mesh()
@@ -45,14 +46,15 @@ bool Mesh::InitBonesFromMesh(const aiMesh* pMesh,
 			     std::vector<VtxBoneInfo>& bones)
 {
   // Fill OffsetMatrix
-  for(uint32 i=0; i< pMesh->mNumBones; i++)
+  for(uint i=0; i< pMesh->mNumBones; i++)
     {
-      string BoneNm(pMesh->mBones[i]->mName.data);
+      uint boneIdx =0;
+      std::string BoneNm(pMesh->mBones[i]->mName.data);
       
-      if(mBoneIdx.find(BoneNm) != mBoneIdx.end())
+      if(mBone2TfIdx.find(BoneNm) != mBone2TfIdx.end())
 	{
-	  uint32 boneIdx = mBoneIdx[BoneNm];
-	  mBoneOffset[boneIdx] = pMesh->mBones[i]->mOffsetMatrix;
+	  boneIdx = mBone2TfIdx[BoneNm];
+	  CopyMat(pMesh->mBones[i]->mOffsetMatrix, mBoneOffset[boneIdx]);
 	  
 	  //printf("Idx: %2u, Name: %s\n", boneIdx, BoneNm.c_str());
 	  //pprintMat16(mBoneOffset[boneIdx]);
@@ -61,16 +63,17 @@ bool Mesh::InitBonesFromMesh(const aiMesh* pMesh,
 	{
 	  //printf("Not needed: %s\n", BoneNm.c_str());
 	}
-    }
 
-  // Fill weights:
-  for (unsigned int j=0; j< pMesh->mBones[i]->mNumWeights; j++)
-    {
-      unsigned int Vid = pMesh->mBones[i]->mWeights[j].mVertexId;
-      float weight = pMesh->mBones[i]->mWeights[j].mWeight;
-      //  printf("vid = %u, weight = %f\n", Vid, weight);
-      bones[Vid].AddBoneData(BoneIndex, weight);
+      // Fill weights:
+      for (unsigned int j=0; j< pMesh->mBones[i]->mNumWeights; j++)
+	{
+	  unsigned int Vid = pMesh->mBones[i]->mWeights[j].mVertexId;
+	  float weight = pMesh->mBones[i]->mWeights[j].mWeight;
+	  //  printf("vid = %u, weight = %f\n", Vid, weight);
+	  bones[Vid].AddBoneData(boneIdx, weight);
+	}
     }
+  return true;
 }
 
 void Mesh::RenderMesh()
@@ -125,8 +128,8 @@ bool Mesh::InitMesh(const aiMesh* pMesh)
       tex.push_back(pTex->x); tex.push_back(pTex->y);
     }
 
-  if (paiMesh->HasBones())
-    LoadBones(Index, paiMesh, bones);
+  if (pMesh->HasBones())
+    InitBonesFromMesh(pMesh, bones);
   else
     printf("Mesh does not contain bones\n");
   
@@ -139,6 +142,7 @@ bool Mesh::InitMesh(const aiMesh* pMesh)
       idx.push_back(f.mIndices[2]);
     }
 
+  printf("Fill in gl arrays\n");
   // Generate and populate the buffers with vertex attributes and indices
   glBindBuffer(GL_ARRAY_BUFFER, _Buffers[POS_VB]);
   glBufferData(GL_ARRAY_BUFFER, sizeof(float)*pos.size(), &pos[0], GL_STATIC_DRAW);
@@ -171,40 +175,15 @@ bool Mesh::InitMesh(const aiMesh* pMesh)
   return (glGetError() == GL_NO_ERROR);
 }
 
-
 /************************************************************************
  ************************************************************************
                Other structs and classes
  ************************************************************************
  ***********************************************************************/
+/*
 void BoneTf::BoneTf()
 {
   Offset  = glm::mat4(0.0f);
   FinalTf = glm::mat4(1.0f);
 }
-
-void VtxBoneInfo::Reset(){memset(ID, 0, sizeof(ID)); memset(W,  0, sizeof(W));} 
-
-void VtxBoneInfo::AddBoneData(unsigned int BoneID, float weight)
-{
-  for(unsigned int i=0; i< NUM_BONES_PER_VERTEX; i++)
-    {
-      if (W[i] == 0.0f)
-	{
-	  ID[i] = BoneID;
-	  W[i] = weight;
-	      return;
-	}
-    }
-  
-  //      printf("Error, more than 4 weights per vertex\n");
-  weight /= NUM_BONES_PER_VERTEX;
-  for(unsigned int i=0; i< NUM_BONES_PER_VERTEX; i++)
-    {
-      W[i] += weight;
-    }
-      return;
-      // should never arrive here (More bones than we have space for    
-      assert(0);
-}
-
+*/

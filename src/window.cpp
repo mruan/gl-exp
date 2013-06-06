@@ -1,4 +1,8 @@
-#include "glManager.hpp"
+#include "window.hpp"
+
+#include <GL/glew.h>
+#include <GL/glfw.h>
+#include "camera.hpp"
 
 Window::Window(const char* win_title, 
 	       const unsigned int win_width,
@@ -71,5 +75,17 @@ void Window::SwapBuffer()
 bool Window::IsRunning()
 {
   return (glfwGetKey(GLFW_KEY_ESC) != GLFW_PRESS &&
-	  glfwGetWindowProgram(GLFW_OPENED);
+	  glfwGetWindowParam(GLFW_OPENED));
+}
+
+bool Window::ShouldShowNextFrame(double interval)
+{
+  static double last_time = glfwGetTime();
+  double this_time = glfwGetTime();
+  bool flag = false;
+  if ( (this_time - last_time) > interval)
+    flag = true;
+
+  last_time = this_time;
+  return flag;
 }
