@@ -1,6 +1,35 @@
 #include "mesh.hpp"
 #include "math_util.hpp"
 
+std::map<std::string, unsigned int> Mesh::BuildRefSkeleton()
+{
+  std::map<std::string, unsigned int> mBoneIdx;
+  mBoneIdx["Hips"]      = 0;
+  mBoneIdx["LHipJoint"] = 1;
+  mBoneIdx["LeftUpLeg"] = 2;
+  mBoneIdx["LeftLeg"]   = 3;
+  mBoneIdx["LeftFoot"]  = 4;
+  mBoneIdx["RHipJoint"] = 5;
+  mBoneIdx["RightUpLeg"]= 6;
+  mBoneIdx["RightLeg"]  = 7;
+  mBoneIdx["RightFoot"] = 8;
+  mBoneIdx["LowerBack"] = 9;
+  mBoneIdx["Spine"]     =10;
+  mBoneIdx["Spine1"]    =11;
+  mBoneIdx["Neck"]      =12;
+  mBoneIdx["Neck1"]     =13;
+  mBoneIdx["Head"]      =14;
+  mBoneIdx["LeftShoulder"]=15;
+  mBoneIdx["LeftArm"]   =16;
+  mBoneIdx["LeftForeArm"]=17;
+  mBoneIdx["LeftHand"]  =18;
+  mBoneIdx["RightShoulder"]=19;
+  mBoneIdx["RightArm"]  =20;
+  mBoneIdx["RightForeArm"]=21;
+  mBoneIdx["RightHand"] =22;
+  return mBoneIdx;
+}
+
 Mesh::Mesh(std::map<std::string, unsigned int>& skel_def)
   :mBone2TfIdx(skel_def), mBoneOffset(skel_def.size())
 {

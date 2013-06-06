@@ -15,14 +15,10 @@
 
 class Mesh
 {
-  //
-  // Some Useful structures
-  //
-  struct BoneTf
-  {
-    glm::mat4 Offset;
-    glm::mat4 FinalTf;
-  };
+public:
+  static std::map<std::string, unsigned int> BuildRefSkeleton();
+
+private:
 
 #define NUM_BONES_PER_VERTEX 4
   typedef unsigned int uint;

@@ -19,20 +19,16 @@ It is meant to test the basic functionalities of this pipeline.
 #include "shader.hpp"
 #include "window.hpp"
 
-#define OBJECT_SOURCE_FILE  "/home/ming/Work/GL/Workspace/gl-exp/resource/run.dae"
+#define OBJECT_SOURCE_FILE  "/home/ming/Work/GL/Workspace/dae/walk_textured.dae"
 #define SHADER_SOURCE_FILE  "/home/ming/Work/GL/Workspace/gl-exp/resource/shader.glsl"
-#define TEXTURE_SOURCE_FILE "./"
+#define TEXTURE_SOURCE_FILE "/home/ming/Work/GL/Workspace/texture/crp1.tga"
 
-#define WIDTH  800
-#define HEIGHT 600
+#define WIDTH  640
+#define HEIGHT 480
 
 glm::vec3 initPos(5.0f, 0.0f, 0.0f);
 glm::vec3 initTar(0.0f, 0.0f, 0.0f);
 glm::vec3 initUp(0.0f, 0.0f, 1.0);
-
-std::map<std::string, unsigned int> skel_ref;
-// Make a reference skeleton;
-void MakeSkel(std::map<std::string, unsigned int>& mBoneIdx);
 
 int main(int argc, char** argv)
 {
@@ -44,11 +40,12 @@ int main(int argc, char** argv)
   Shader shader;
   if (!shader.InitShader(SHADER_SOURCE_FILE))
     return -1;
-  //  if (!shader.InitTextureTGA(TEXTURE_SOURCE_FILE))
-  //    return -1;
+  if (!shader.InitTextureTGA(TEXTURE_SOURCE_FILE))
+    return -1;
 
   // Build a reference skeleton:
-  MakeSkel(skel_ref);
+  std::map<std::string, unsigned int> skel_ref;
+  skel_ref = Mesh::BuildRefSkeleton();
 
   // Init the ref mesh skeleton, not ready to load the actual object yet
   Mesh   myMesh(skel_ref);
@@ -76,13 +73,14 @@ int main(int argc, char** argv)
     window.ClearCanvas();
     shader.Enable();
 
-    // DO SOMETHING
-#define INTERVAL 1.0 // 1fps
+    // Animating the scene
+#define INTERVAL 0.1 // 1fps
     if(window.ShouldShowNextFrame(INTERVAL))
       {
 	anim.UpdateFrameTfs(frame++);
-	shader.SetBoneTfs(anim.GetTfs());
       }
+
+    shader.SetBoneTfs(anim.GetTfs());
 
     camera.updateViewFromInput();
     glm::mat4 worldModel = glm::mat4(1.0f);//assume model matrix is I
@@ -95,34 +93,6 @@ int main(int argc, char** argv)
 
   return 0;
 }
-
-void MakeSkel(std::map<std::string, unsigned int>& mBoneIdx)
-{
-  mBoneIdx["Hips"]      = 0;
-  mBoneIdx["LHipJoint"] = 1;
-  mBoneIdx["LeftUpLeg"] = 2;
-  mBoneIdx["LeftLeg"]   = 3;
-  mBoneIdx["LeftFoot"]  = 4;
-  mBoneIdx["RHipJoint"] = 5;
-  mBoneIdx["RightUpLeg"]= 6;
-  mBoneIdx["RightLeg"]  = 7;
-  mBoneIdx["RightFoot"] = 8;
-  mBoneIdx["LowerBack"] = 9;
-  mBoneIdx["Spine"]     =10;
-  mBoneIdx["Spine1"]    =11;
-  mBoneIdx["Neck"]      =12;
-  mBoneIdx["Neck1"]     =13;
-  mBoneIdx["Head"]      =14;
-  mBoneIdx["LeftShoulder"]=15;
-  mBoneIdx["LeftArm"]   =16;
-  mBoneIdx["LeftForeArm"]=17;
-  mBoneIdx["LeftHand"]  =18;
-  mBoneIdx["RightShoulder"]=19;
-  mBoneIdx["RightArm"]  =20;
-  mBoneIdx["RightForeArm"]=21;
-  mBoneIdx["RightHand"] =22;
-}
-
 /*
 void LoadSkel(std::map<std::string, unsigned int>& rSkel_ref)
 {

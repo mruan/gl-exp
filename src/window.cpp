@@ -84,8 +84,9 @@ bool Window::ShouldShowNextFrame(double interval)
   double this_time = glfwGetTime();
   bool flag = false;
   if ( (this_time - last_time) > interval)
-    flag = true;
-
-  last_time = this_time;
+    {
+      flag = true;
+      last_time = this_time;
+    }
   return flag;
 }
