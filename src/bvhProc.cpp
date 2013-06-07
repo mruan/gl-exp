@@ -1,5 +1,9 @@
 
 #include "bvhProc.hpp"
+#include "math_util.hpp"
+
+#include <matrix3x3.h>
+#include <matrix4x4.h>
 
 #define BUFFER_SIZE 512
 
@@ -8,7 +12,7 @@
                         BvhPreProcessor Class
  *********************************************************************
  ********************************************************************/
-void BvhPreProcessor::BuildRefMask(std::vector<bool>& mask)
+int BvhPreProcessor::BuildRefMask(std::vector<bool>& mask)
 {
   // WARNING: This mask is only for the MotionBuilder version of the CMU Mocap dataset
   // The detailed definition is given below. Both the order and the mask value matter!
@@ -37,20 +41,41 @@ void BvhPreProcessor::BuildRefMask(std::vector<bool>& mask)
   // fill in the actual content
   // (Don't use std::copy, coz vector<bool> is different)
   mask.resize(31);
-  bool m = {1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0};
+  bool m[] = {1,1,1,1,1,0,1,1,1,1,0,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,0,0,0};
   for(unsigned int i=0; i < 31; i++)
     mask[i] = m[i];
   // Set the actual number of valid joints:
-  mNumJoints = 23;
+  return 23;
 }
 
-BvhPreProcessor::BvhPreProcessor()
-  :mTotalFrames(0)
+BvhPreProcessor::BvhPreProcessor(double sampleRate)
+  :mSampleRate(sampleRate), mTotalFrames(0)
 {
+  // Call a static function to build the reference mask
+  mNumJoints = BuildRefMask(mask); // = 23
 }
 
-void BvhPreProcessor::ParseAnimation(FILE*& fd)
+BvhPreProcessor::~BvhPreProcessor()
 {
+  Clear();
+}
+
+void BvhPreProcessor::Clear()
+{
+  for (unsigned int i=0; i< mFrames.size(); ++i)
+    if (mFrames[i] != NULL)
+      delete [] mFrames[i];
+}
+
+bool BvhPreProcessor::ParseAnimation(const char* infile)
+{
+  FILE* fd = fopen(infile, "r");
+  if (fd == 0)
+    {
+      printf("Couldn't open file %s\n", infile);
+      return false;
+    }
+
   unsigned int frames;
   double frameRate;
   char buffer[BUFFER_SIZE];
@@ -63,54 +88,61 @@ void BvhPreProcessor::ParseAnimation(FILE*& fd)
     sscanf(buffer, " %s", token); 
   }while(strcmp(token, "MOTION")!=0);
   
-  fgets(buffer, BUFFER_SIZE, fd);
-  sscanf(buffer, " %s %u", token, &frames); // token== "Frames:"
+  fscanf(fd, " %s %u ", token, &frames); // token== "Frames:"
   
-  fgets(buffer, BUFFER_SIZE, fd);
-  sscanf(buffer, " %s %lf", token,  &frameRate);
+  //  fgets(buffer, BUFFER_SIZE, fd);
+  fscanf(fd, " %s %s %lf ", token, token, &frameRate);
+
+  printf("%s has %u frames at %lf\n", infile, frames, frameRate);
 
   // Allocate space for frames:
-  mNumframes = frames*frameRate/mSampleRate;
-  mTotalFrames +=numframes;
-  mFrames.reserve(numframes);
+  mNumFrames = frames*frameRate/mSampleRate;
+  mTotalFrames += mNumFrames;
+  // Clear vector
+  Clear();
+  mFrames.resize(mNumFrames);
 
+  int fc = 0; // frame counter;
   float x, y, z;      // Root offset
   float rx, ry, rz;   // Joint rotation
-  unsigned int frame_counter = 0;
-  double current_time=0;
+  double current_time = 0;
   double last_time=0;
-  for(unsigned int i=0; i< frames; i++)
+  for(unsigned int i=0; i< frames; i++ )
     {
       // down sample
       if ( (current_time - last_time) > mSampleRate)
 	{
     	  // Read in the root offset;
-    	  fscanf(fd, " %f %f %f", &x, &y, &z);
-	  //   	  _root_traj.push_back(Triplet(x, y, z));
+    	  fscanf(fd, " %f %f %f ", &x, &y, &z);
 	  
     	  // For all the joints, read in the animation
     	  // but do not waste capacity on inactive joints
 	  
 	  // create a new frame:
-	  std::vector<float> frame;
+	  //	  std::vector<float> frame;
+	  try{
+	    mFrames[fc] = new float[3+3*mNumJoints];
+	  }catch(std::bad_alloc& ba){
+	    printf("Cannot allocate more space\n");
+	  }
 
-	  frame.reserve(3+3*mNumJoints);
-	  frame.push_back(x); frame.push_back(y); frame.push_back(z);
+	  float* it = &mFrames[fc][0];
+	  *it = x; *(++it) = y; *(++it) = z;
     	  for(unsigned int j=0; j< mask.size(); j++)
 	    {
 	      // Assume the bvh file uses the Z->Y->X convention
-	      fscanf(fd, " %f %f %f", &rz, &ry, &rx);
+	      fscanf(fd, " %f %f %f ", &rz, &ry, &rx);
 	      
 	      if (mask[j])
 		{
 		  // Add data to this frame:
-		  frame.push_back(rz); frame.push_back(ry); frame.push_back(rx);
+		  *++it = rz; *++it= ry; *++it = rx; 
 		}
 	    }
-	  // Add this frame to the animation
-	  mFrames.push_back(frame);
 	  // Update our sampling time
 	  last_time += mSampleRate;
+	  // Increment frame counter
+	  ++fc;
 	}
       // Finish current line and move on to the next one
       char* pc;
@@ -122,6 +154,8 @@ void BvhPreProcessor::ParseAnimation(FILE*& fd)
       // Update the bvh time
       current_time += frameRate;
     }
+  fclose(fd);
+  return true;
 }
 
 bool BvhPreProcessor::DumpAnimToFile(const char* outfile)
@@ -133,15 +167,14 @@ bool BvhPreProcessor::DumpAnimToFile(const char* outfile)
       return false;
     }
 
-  fprintf("Frames: %u\n",  mNumFrames);
-  for(int i=0; i< mNumFrames; i++)
+  printf("Dump %u frames to %s\n", mNumFrames, outfile);
+  fprintf(out, "Frames: %u\n",  mNumFrames);
+  for(unsigned int i=0; i< mNumFrames; i++)
     {
-      float* pF = &mFrames[i][0];
-      printf("%f %f %f", *pF++, *pF++, *pF++);
-      for(int j=0; j < mNumJoints; j++)
-	printf(" %f %f %f", *pF++, *pF++, *pF++);
+      for(int j=0; j< 3*mNumJoints+3; j++)
+	fprintf(out, "%f ", mFrames[i][j]);
 
-      printf("\n");
+      fprintf(out, "\n");
     }
 
   fclose(out);
@@ -158,13 +191,13 @@ BvhSkeleton::BvhSkeleton(std::map<std::string, unsigned int>& B2TfIdx)
 {}
 
 // A small helper function to release pointers
-void DeleteNode(aiNode* pNode)
+void BvhSkeleton::DeleteNode(aiNode* pNode)
 {
   if(pNode->mNumChildren ==0)
     delete pNode;
 
-  for(int i=0; i< pNode.mNumChildren; i++)
-    DeleteNode(pNode.mChildren[i]);
+  for(unsigned int i=0; i< pNode->mNumChildren; i++)
+    DeleteNode(pNode->mChildren[i]);
 }
 
 BvhSkeleton::~BvhSkeleton()
@@ -191,23 +224,24 @@ bool BvhSkeleton::LoadFile(const char* skel_file)
   // finish the rest of the line
   fgets(buffer, BUFFER_SIZE, fd);
   
-  std::string root = GetNextToken();
+  std::string root = GetNextToken(fd);
   if (root != "ROOT")
     {
       printf("Expected root node\n");
       return false;
     }
-  mRoot = ParseNode(fd);
+  mRoot = ReadNode(fd);
   assert(mRoot!=0);
 
   // Compute mBoneOffset for each node
-  BuildOffset(mRoot);
+  BuildAllOffset(mRoot);
   return true;
 }
 
-void BvhSkeleton::BuildOffsetMatrix(const aiNode* pNode)
+void BvhSkeleton::BuildAllOffset(const aiNode* pNode)
 {
-  if(Bone2TfIdx.find(pNode->mName) != Bone2TfIdx.end())
+  std::string name(pNode->mName.C_Str());
+  if(Bone2TfIdx.find(name) != Bone2TfIdx.end())
     {
       // calculate the bone offset matrix by concatenating the inverse transformations of all parents
       aiMatrix4x4 mOffsetMatrix = aiMatrix4x4( pNode->mTransformation).Inverse();
@@ -216,15 +250,15 @@ void BvhSkeleton::BuildOffsetMatrix(const aiNode* pNode)
 	  mOffsetMatrix = aiMatrix4x4( parent->mTransformation).Inverse() * mOffsetMatrix;
 	}
 
-      unsigned int boneIdx = Bone2TfIdx(pNode->mName);
+      unsigned int boneIdx = Bone2TfIdx[name];
       CopyMat(mOffsetMatrix, mBoneOffset[boneIdx]);
 
       for(unsigned int i=0; i< pNode->mNumChildren; i++)
-	BuildOffsetMatrix(pNode->mChildren[i]);
+	BuildAllOffset(pNode->mChildren[i]);
     }
 }
 
-aiNode* BvhSkeleton::ParseNode(FILE*& fd)
+aiNode* BvhSkeleton::ReadNode(FILE*& fd)
 {
   // first token is name
   std::string nodeName = GetNextToken(fd);
@@ -238,7 +272,7 @@ aiNode* BvhSkeleton::ParseNode(FILE*& fd)
   std::string openBrace = GetNextToken(fd);
   if (openBrace != "{")
     {
-      printf("Expect opening brace, but got %s\n". openBrace.c_str());
+      printf("Expect opening brace, but got %s\n", openBrace.c_str());
       return NULL;
     }
 
@@ -263,8 +297,8 @@ aiNode* BvhSkeleton::ParseNode(FILE*& fd)
 	  childNodes.push_back(child);
 	}
       else if (token == "End")
-	ReadEndSide(fd);
-      else if (token = "}")
+	ReadEndSite(fd);
+      else if (token == "}")
 	break;
       else
 	{
@@ -303,14 +337,14 @@ std::string BvhSkeleton::GetNextToken(FILE*& fd)
 
 // ------------------------------------------------------------------------------------------------
 // Reads an end node and returns the created node.
-void BvhSkeleton::ReadEndSite(FILE* fd)
+void BvhSkeleton::ReadEndSite(FILE*& fd)
 {
   // check opening brace
-  std::string openBrace = GetNextToken();
+  std::string openBrace = GetNextToken(fd);
   if( openBrace != "{")
     {
-      printf("Expect opening brace, but got %s\n". openBrace.c_str());
-      return NULL;
+      printf("Expect opening brace, but got %s\n", openBrace.c_str());
+      return;
     }
 
   // Create a node
@@ -352,7 +386,7 @@ void BvhSkeleton::ReadNodeOffset(FILE*& fd,  aiNode* pNode)
   //  offset.y = GetNextTokenAsFloat(fd);
   //  offset.z = GetNextTokenAsFloat(fd);
   
-  mBoneTr[mBoneOffset[pNode->mName]] = aiVector3D(x,y,z);
+  mBoneTr[Bone2TfIdx[pNode->mName.C_Str()]] = aiVector3D(x,y,z);
 
   // build a transformation matrix from it
   pNode->mTransformation = aiMatrix4x4( 1.0f, 0.0f, 0.0f, x, 0.0f, 1.0f, 0.0f, y,
@@ -365,21 +399,21 @@ void BvhSkeleton::ReadChannels(FILE*& fd)
 {
   // Given the way all BVH motion data are loaded.
   int numChannels;
-  fscanf(fd, " %d", numChannel);
+  fscanf(fd, " %d", &numChannels);
   
   std::string channelToken = GetNextToken(fd);
-  if (string =="Xposition")//this happens for root node
+  if (channelToken =="Xposition")//this happens for root node
     {
       GetNextToken(fd);
       GetNextToken(fd);
     }
   else
     {
-      assert( string == "Zrotation");
-      string = GetNextToken(fd);
-      assert( string == "Yrotation");
-      string = GetNextToken(fd);
-      assert( string == "Xrotation");
+      assert( channelToken == "Zrotation");
+      channelToken = GetNextToken(fd);
+      assert( channelToken == "Yrotation");
+      channelToken = GetNextToken(fd);
+      assert( channelToken == "Xrotation");
     }
 }
 
@@ -388,20 +422,18 @@ void BvhSkeleton::ReadChannels(FILE*& fd)
                           BvhAnim Class
  *********************************************************************
  ********************************************************************/
-BvhAnim::BvhAnim(std::vector<aiVector3D>& BoneTf)
-  :mBoneTf(BoneTf)
+BvhAnim::BvhAnim(std::vector<aiVector3D>& BoneTr)
+  :mBoneTr(BoneTr)
 {
   pAnim = new aiAnimation();
-  pAnim->mNumChannels = BoneTf.size();
+  pAnim->mNumChannels = BoneTr.size();
 }
 
 BvhAnim::~BvhAnim()
 {
-  for(int j=0; j < pAnim->mNumChannels; j++)
+  for(unsigned int j=0; j < pAnim->mNumChannels; j++)
     {
-      delete [] pAnim->mChannels[j].mPositionKeys;
-      delete [] pAnim->mChannels[j].mRotationKeys;
-      delete [] pAnim->mChannels[j].mScalingKeys;
+      delete [] pAnim->mChannels[j];
     }
   delete pAnim;
 }
@@ -420,15 +452,15 @@ bool BvhAnim::LoadAnim(const char* file)
   fscanf(fd, " %s %d", nframe_s, &nframe);
 
   // Pre-allocate spaces for all channels;
-  for(int j=0; j < pAnim->mNumChannels; j++)
+  for(unsigned int j=0; j < pAnim->mNumChannels; j++)
     {
-      if (j=0)// only root has translation
-	pAnim->mChannels[j].mPositionKeys = new aiVectorKey[nframe];
+      if (j== 0)// only root has translation
+	pAnim->mChannels[j]->mPositionKeys = new aiVectorKey[nframe];
       else // all others just take the bone transform;
-	pAnim->mChannels[j].mPositionKeys = new aiVectorKey(0.0, mBoneTr[j]);
+	pAnim->mChannels[j]->mPositionKeys = new aiVectorKey(0.0, mBoneTr[j]);
 
-      pAnim->mChannels[j].mRotationKeys = new aiVectorKey[nframe];
-      pAnim->mChannels[j].mScalingKeys  = new aiVectorKey(0.0, aiVector3D(1.0f, 1.0f, 1.0f));
+      pAnim->mChannels[j]->mRotationKeys = new aiQuatKey[nframe];
+      pAnim->mChannels[j]->mScalingKeys  = new aiVectorKey(0.0, aiVector3D(1.0f, 1.0f, 1.0f));
     }
 
   for(int i=0; i < nframe; i++)
@@ -437,8 +469,8 @@ bool BvhAnim::LoadAnim(const char* file)
       float x,y,z;
       fscanf(fd, " %f %f %f", &x, &y, &z);
       // Don't care about the time, set all to 0.0
-      pAnim->mChannels[0][i].mPositionKeys = aiVectorKey(0.0, aiVector3D(x, y, z));
-      for(int j=0; j < pAnim->mNumChannels; j++)
+      pAnim->mChannels[0]->mPositionKeys[i].mValue = aiVector3D(x, y, z);
+      for(unsigned int j=0; j < pAnim->mNumChannels; j++)
 	{
 	  aiMatrix4x4 temp;
 	  aiMatrix3x3 rotMatrix;
@@ -448,7 +480,7 @@ bool BvhAnim::LoadAnim(const char* file)
 	  aiMatrix4x4::RotationZ( z*PI_PER_DEG, temp); rotMatrix *= aiMatrix3x3(temp);
 	  aiMatrix4x4::RotationY( y*PI_PER_DEG, temp); rotMatrix *= aiMatrix3x3(temp);
 	  aiMatrix4x4::RotationX( x*PI_PER_DEG, temp); rotMatrix *= aiMatrix3x3(temp);
-	  pAnim->mChannels[j][i].mRotationKeys = aiQuatKey(0.0, aiQuaternion( rotMatrix));
+	  pAnim->mChannels[j]->mRotationKeys[i].mValue = aiQuaternion( rotMatrix);
 	}
     }
 
